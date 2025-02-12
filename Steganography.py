@@ -90,10 +90,10 @@ class SecureImageSteganography:
                         m = 0
                         n += 1
 
-            retrieved_hash = retrieved_hash_bytes.decode('utf-8')
+            retrieved_hash = bytes(retrieved_hash_bytes).decode('utf-8', errors='ignore')
             input_hash = self.hash_password(input_password)
 
-            if input_hash != retrieved_hash:
+            if input_hash.strip() != retrieved_hash.strip():
                 return "Error: Incorrect Password"
 
             z = (z + 1) % 3
@@ -114,7 +114,7 @@ class SecureImageSteganography:
                         n += 1
 
             msg_length = int.from_bytes(length_bytes, byteorder='big')
-            if msg_length <= 0:
+            if msg_length <= 0 or msg_length > img.shape[0] * img.shape[1] * 3:
                 return "Error: Invalid message length"
 
             z = (z + 1) % 3
@@ -134,7 +134,7 @@ class SecureImageSteganography:
                         m = 0
                         n += 1
 
-            return msg_bytes.decode('utf-8')
+            return msg_bytes.decode('utf-8', errors='ignore')
         except Exception as e:
             return f"Decryption Error: {str(e)}"
 
@@ -143,14 +143,26 @@ steg = SecureImageSteganography()
 def encrypt(img, message, password):
     img_array = np.array(img)
     encrypted_img = steg.encrypt_message(img_array, message, password)
-    return Image.fromarray(encrypted_img)
+    return Image.fromarray(encrypted_img).convert("RGB")
 
 def decrypt(img, password):
     img_array = np.array(img)
     return steg.decrypt_message(img_array, password)
 
-encrypt_interface = gr.Interface(fn=encrypt, inputs=["image", "text", "text"], outputs="image", title="Image Encryption")
-decrypt_interface = gr.Interface(fn=decrypt, inputs=["image", "text"], outputs="text", title="Image Decryption")
+encrypt_interface = gr.Interface(
+    fn=encrypt, 
+    inputs=["image", "text", "text"], 
+    outputs=gr.Image(type="numpy", format="png"), 
+    title="Image Encryption"
+)
+
+decrypt_interface = gr.Interface(
+    fn=decrypt, 
+    inputs=["image", "text"], 
+    outputs="text", 
+    title="Image Decryption"
+)
 
 demo = gr.TabbedInterface([encrypt_interface, decrypt_interface], ["Encrypt", "Decrypt"])
 demo.launch()
+
